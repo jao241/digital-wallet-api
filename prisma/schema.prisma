@@ -4,6 +4,8 @@
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
+  moduleFormat = "esm"
+  importFileExtension = "js"
 }
 
 datasource db {
@@ -34,7 +36,7 @@ model Wallet {
 model Transaction {
   id                Int               @id @default(autoincrement())
   amount            Int               @default(0)
-  status            TransactionStatus @default(PENDING)
+  status            TransactionStatus @default(COMPLETED)
   originWallet      Wallet            @relation("WalletOrigin", fields: [originWalletId], references: [id])
   originWalletId    Int
   destinationWallet Wallet            @relation("WalletDestination", fields: [destinationWalletId], references: [id])
@@ -44,8 +46,6 @@ model Transaction {
 }
 
 enum TransactionStatus {
-  PENDING
   COMPLETED
-  FAILED
   REVERSED
 }

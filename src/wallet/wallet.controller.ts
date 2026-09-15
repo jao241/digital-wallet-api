@@ -1,34 +1,37 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Body,
+  Patch,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { WalletService } from './wallet.service.js';
-import { CreateWalletDto } from './dto/create-wallet.dto.js';
 import { UpdateWalletDto } from './dto/update-wallet.dto.js';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard.js';
 
+@ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard)
 @Controller('wallet')
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
-
-  @Post()
-  create(@Body() createWalletDto: CreateWalletDto) {
-    return this.walletService.create(createWalletDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.walletService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.walletService.findOne(+id);
-  }
-
+  @ApiOperation({
+    summary: 'Atualizar valor na carteira de um usuário pelo ID da carteira',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna a carteira com o valor atualizado',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Parametro id no formato incorreto, tipo numerico esperado',
+  })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateWalletDto: UpdateWalletDto) {
-    return this.walletService.update(+id, updateWalletDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.walletService.remove(+id);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateWalletDto: UpdateWalletDto,
+  ) {
+    return this.walletService.update(id, updateWalletDto.balance);
   }
 }

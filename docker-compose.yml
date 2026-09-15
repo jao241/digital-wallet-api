@@ -1,19 +1,35 @@
 services:
+  api:
+    build: .
+    container_name: virtual-wallet-api
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://joao:1234@postgres:5432/virtual-wallet
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:17
-    container_name: wirtual-wallet-db
+    container_name: virtual-wallet-db
     restart: unless-stopped
-
     environment:
       POSTGRES_USER: joao
       POSTGRES_PASSWORD: "1234"
-      POSTGRES_DB: wirtual-wallet
-
+      POSTGRES_DB: virtual-wallet
     ports:
       - "5432:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U joao -d virtual-wallet"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

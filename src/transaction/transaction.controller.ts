@@ -1,34 +1,47 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  ParseIntPipe,
+} from '@nestjs/common';
+import { TransferAmountDto } from './dto/transfer-amount.dto.js';
 import { TransactionService } from './transaction.service.js';
-import { CreateTransactionDto } from './dto/create-transaction.dto.js';
-import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth-guard.js';
 
+@ApiBearerAuth('access-token')
+@UseGuards(JwtAuthGuard)
 @Controller('transaction')
 export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
+  @ApiOperation({
+    summary: 'Realizar transferencia entre duas carteiras',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna a transação gerada',
+  })
   @Post()
-  create(@Body() createTransactionDto: CreateTransactionDto) {
-    return this.transactionService.create(createTransactionDto);
+  async create(@Body() transferAmountDto: TransferAmountDto) {
+    return await this.transactionService.transfer(transferAmountDto);
   }
 
-  @Get()
-  findAll() {
-    return this.transactionService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.transactionService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTransactionDto: UpdateTransactionDto) {
-    return this.transactionService.update(+id, updateTransactionDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.transactionService.remove(+id);
+  @ApiOperation({
+    summary: 'Reverter uma transação realizada',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna a nova transação gerada',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Parametro id no formato incorreto, tipo numerico esperado',
+  })
+  @Post('/reverse/:id')
+  async reverseTransaction(@Param('id', ParseIntPipe) id: number) {
+    return await this.transactionService.reverse(id);
   }
 }

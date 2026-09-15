@@ -1,4 +1,4 @@
-import { TransactionStatus } from "../../generated/prisma/enums";
+import { TransactionStatus } from "../../generated/prisma/enums.js";
 
 export class Transaction {
     id: number;

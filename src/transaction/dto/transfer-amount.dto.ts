@@ -2,7 +2,7 @@ import { IsEnum, IsNotEmpty, IsNumber } from 'class-validator';
 import { TransactionStatus } from '../../generated/prisma/enums.js';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateTransactionDto {
+export class TransferAmountDto {
   @ApiProperty({
     example: 2000,
     description: 'Valor da transação, em centavos',
@@ -17,7 +17,7 @@ export class CreateTransactionDto {
   })
   @IsNotEmpty()
   @IsEnum(TransactionStatus)
-  status: TransactionStatus;
+  status: string;
 
   @ApiProperty({
     example: 1,
@@ -25,7 +25,7 @@ export class CreateTransactionDto {
   })
   @IsNotEmpty()
   @IsNumber()
-  originWalletId: number;
+  originWalletUserId: number;
 
   @ApiProperty({
     example: 2,
@@ -33,5 +33,5 @@ export class CreateTransactionDto {
   })
   @IsNotEmpty()
   @IsNumber()
-  destinationWalletId: number;
+  destinationWalletUserId: number;
 }

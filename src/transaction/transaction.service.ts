@@ -1,26 +1,93 @@
-import { Injectable } from '@nestjs/common';
-import { CreateTransactionDto } from './dto/create-transaction.dto.js';
-import { UpdateTransactionDto } from './dto/update-transaction.dto.js';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
+import { TransferAmountDto } from './dto/transfer-amount.dto.js';
+import { TransactionStatus } from '../generated/prisma/enums.js';
+import { TransactionRepository } from './transaction-repository/transaction-repository.js';
+import { WalletRepository } from '../wallet/wallet-repository/wallet-repository.js';
 
 @Injectable()
 export class TransactionService {
-  create(createTransactionDto: CreateTransactionDto) {
-    return 'This action adds a new transaction';
+  constructor(
+    private readonly transactionRepository: TransactionRepository,
+    private readonly walletRepository: WalletRepository,
+  ) {}
+
+  async transfer(transferAmountDto: TransferAmountDto) {
+    const originWallet = await this.walletRepository.findByUserId(
+      transferAmountDto.originWalletUserId,
+    );
+
+    if (!originWallet) {
+      throw new NotFoundException('Origin wallet not found');
+    }
+
+    const destinationWallet = await this.walletRepository.findByUserId(
+      transferAmountDto.destinationWalletUserId,
+    );
+
+    if (!destinationWallet) {
+      throw new NotFoundException('Destination wallet not found');
+    }
+
+    if (originWallet.id === destinationWallet.id) {
+      throw new ConflictException(
+        'Origin and destination wallets must be different',
+      );
+    }
+
+    if (originWallet.balance < transferAmountDto.amount) {
+      throw new ConflictException(
+        'The amount passed is higher than the wallet balance',
+      );
+    }
+
+    return await this.transactionRepository.transfer({
+      amount: transferAmountDto.amount,
+      destinationWalletId: destinationWallet.id,
+      originWalletId: originWallet.id,
+      status: TransactionStatus.COMPLETED
+    });
   }
 
-  findAll() {
-    return `This action returns all transaction`;
-  }
+  async reverse(id: number) {
+    const transaction = await this.transactionRepository.findOne(id);
 
-  findOne(id: number) {
-    return `This action returns a #${id} transaction`;
-  }
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
 
-  update(id: number, updateTransactionDto: UpdateTransactionDto) {
-    return `This action updates a #${id} transaction`;
-  }
+    if (transaction.status !== TransactionStatus.COMPLETED) {
+      throw new ConflictException(
+        'Only completed transactions can be reversed',
+      );
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} transaction`;
+    const originWallet = await this.walletRepository.findOne(
+      transaction.originWalletId,
+    );
+
+    if (!originWallet) {
+      throw new NotFoundException('Origin wallet not found');
+    }
+
+    const destinationWallet = await this.walletRepository.findOne(
+      transaction.destinationWalletId,
+    );
+
+    if (!destinationWallet) {
+      throw new NotFoundException('Destination wallet not found');
+    }
+
+    if (destinationWallet.balance < transaction.amount) {
+      throw new ConflictException(
+        'The destination wallet does not have enough balance to reverse the transaction',
+      );
+    }
+    
+    return await this.transactionRepository.reverse(transaction.id);
   }
 }

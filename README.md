@@ -1,114 +1,322 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Carteira Financeira API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST para gerenciamento de uma carteira financeira, desenvolvida como desafio técnico para **Grupo Adriano Cobuccio**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+A aplicação permite que usuários criem suas contas, realizem autenticação e efetuem transferências de saldo entre carteiras, com suporte à reversão de transações.
 
-## Description
+## Tecnologias
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+* **Node.js**
+* **NestJS**
+* **TypeScript**
+* **PostgreSQL**
+* **Prisma ORM**
+* **JWT**
+* **bcrypt**
+* **Docker**
+* **Vitest**
 
-## Project setup
+## Funcionalidades
 
-```bash
-$ npm install
+* Cadastro de usuários
+* Criação automática de carteira no cadastro
+* Autenticação utilizando JWT
+* Transferência entre usuários
+* Validação de saldo disponível
+* Reversão de transferências
+* Registro das transações
+* Operações financeiras executadas de forma atômica
+
+## Arquitetura
+
+A aplicação utiliza uma arquitetura em camadas, buscando manter as responsabilidades separadas:
+
+```text
+Controller
+    ↓
+Service
+    ↓
+Repository
+    ↓
+Prisma
+    ↓
+PostgreSQL
 ```
 
-## Compile and run the project
+## Modelagem
 
-```bash
-# development
-$ npm run start
+A aplicação possui três entidades principais:
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```text
+User
+ │
+ │ 1:1
+ ↓
+Wallet
+ │
+ │ 1:N
+ ↓
+Transaction
 ```
 
-## Run tests
+## Segurança
 
-```bash
-# unit tests
-$ npm run test
+A API utiliza JWT para autenticação.
 
-# e2e tests
-$ npm run test:e2e
+As senhas não são armazenadas em texto puro. Elas são processadas utilizando `bcrypt` antes de serem persistidas.
 
-# test coverage
-$ npm run test:cov
+O fluxo de autenticação é:
+
+```text
+Cadastro
+   ↓
+Senha recebe hash
+   ↓
+Usuário + carteira são criados
+   ↓
+Login
+   ↓
+Validação da senha
+   ↓
+JWT
+   ↓
+Endpoints protegidos
 ```
 
-## Deployment
+Também são utilizados DTOs para validação dos dados recebidos pela API.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Transferências
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Uma transferência altera três informações:
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```text
+Carteira de origem
+        ↓
+    - valor
+        ↓
+Carteira de destino
+        ↓
+    + valor
+
+        +
+
+Registro da transação
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Essas operações são executadas dentro de uma transação do banco de dados.
 
-## Observability
+Caso uma das operações falhe, as alterações anteriores são revertidas.
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+Exemplo:
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+```text
+Carteira A: R$ 1.000,00
+Carteira B: R$   500,00
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+Transferência: R$ 200,00
 
-## Resources
+Carteira A: R$   800,00
+Carteira B: R$   700,00
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## Reversão
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Uma transferência concluída pode ser revertida.
 
-## Support
+Exemplo:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```text
+Transferência original:
 
-## Stay in touch
+A ─── R$ 200 ───> B
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
 
-## License
+Reversão:
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+B ─── R$ 200 ───> A
+```
+
+A transação original passa para o estado `REVERSED` e uma nova transação representa a devolução do valor.
+
+As alterações também são realizadas dentro de uma transação do banco.
+
+## Pré-requisitos
+
+Para executar o projeto localmente, é necessário ter instalado:
+
+* Node.js
+* npm
+* Docker
+* Docker Compose
+
+## Instalação
+
+Clone o projeto:
+
+```bash
+git clone <https://github.com/jao241/digital-wallet-api.git>
+```
+
+Entre no diretório:
+
+```bash
+cd ac-carteira-digital
+```
+
+Instale as dependências:
+
+```bash
+npm install
+```
+
+## Variáveis de ambiente
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
+DATABASE_URL="postgresql://usuario:senha@localhost:5432/virtual-wallet"
+JWT_SECRET="sua-chave-secreta"
+JWT_EXPIRES_IN="1d"
+```
+
+Não versione o arquivo `.env`.
+
+Utilize o `.env.example` como referência.
+
+## Banco de dados e API
+
+Suba o PostgreSQL e a API utilizando Docker:
+
+```bash
+docker compose up -d
+```
+
+Execute as migrations:
+
+```bash
+docker exec -it virtual-wallet-api npx prisma migrate dev
+```
+
+Gere o Prisma Client:
+
+```bash
+docker exec -it virtual-wallet-api npx prisma generate
+```
+
+A aplicação estará disponível em:
+
+```text
+http://localhost:3000
+```
+
+## Documentação
+
+A API possui documentação através do Swagger.
+
+Após iniciar a aplicação, acesse:
+
+```text
+http://localhost:3000/api
+```
+
+A documentação permite visualizar e testar os endpoints disponíveis.
+
+
+## Build
+
+Para gerar a versão de produção:
+
+```bash
+npm run build
+```
+
+## Estrutura do projeto
+
+Uma visão simplificada da estrutura:
+
+```text
+src/
+├── auth/
+│   ├── dto/
+│   ├── guards/
+│   ├── strategies/
+│   ├── auth.controller.ts
+│   ├── auth.service.ts
+│   └── auth.service.spec.ts
+│
+├── user/
+│   ├── entities/
+│   ├── user-repository/
+│   ├── user.controller.ts
+│   ├── user.service.ts
+│   └── user-repository/
+│
+├── wallet/
+│   ├── dto/
+│   ├── entities/
+│   ├── wallet-repository/
+│   ├── wallet.controller.ts
+│   ├── wallet.service.ts
+│   └── wallet-repository/
+│
+├── transaction/
+│   ├── dto/
+│   ├── entities/
+│   ├── transaction-repository/
+│   ├── transaction.controller.ts
+│   ├── transaction.service.ts
+│   └── transaction-repository/
+│
+├── prisma/
+│   ├── prisma.module.ts
+│   └── prisma.service.ts
+│
+├── app.controller.ts
+└── app.module.ts
+```
+
+## Decisões técnicas
+
+### Valores monetários
+
+Os valores são armazenados em centavos utilizando inteiros.
+
+Por exemplo:
+
+```text
+R$ 10,50 → 1050
+R$ 100,00 → 10000
+```
+
+Essa abordagem evita problemas de precisão associados a números de ponto flutuante.
+
+### Transações do banco
+
+Transferências e reversões envolvem múltiplas alterações no banco.
+
+Por isso, as operações são executadas utilizando transações do Prisma, garantindo que as alterações sejam confirmadas ou revertidas em conjunto.
+
+### Separação de responsabilidades
+
+A separação entre Controller, Service e Repository permite que:
+
+* Controllers cuidem da camada HTTP;
+* Services concentrem as regras de negócio;
+* Repositories cuidem da persistência.
+
+Essa divisão facilita manutenção, testes e evolução da aplicação.
+
+## Melhorias futuras
+
+Alguns pontos podem ser evoluídos em uma versão futura:
+
+* testes unitários;
+* testes de integração com PostgreSQL;
+* testes E2E;
+* testes de arquitetura;
+* implementação de controle mais avançado de concorrência em transferências;
+* logging estruturado;
+* monitoramento e métricas;
+* rate limiting;
+* idempotência para operações financeiras;
+* mecanismo mais robusto de auditoria das transações.
